@@ -1,446 +1,109 @@
-<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>月別 売上・仕入・粗利アプリ</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #f8fafc;
-      color: #0f172a;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      padding: 20px;
-    }
-    .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
-    header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: clamp(26px, 4vw, 40px); line-height: 1.1; }
-    h2 { margin: 0 0 14px; font-size: 20px; }
-    p { margin: 10px 0 0; color: #64748b; }
-    .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
-    .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
-    .card {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-    }
-    .label { color: #64748b; font-size: 14px; margin-bottom: 6px; }
-    .value { font-size: 24px; font-weight: 800; }
-    .sub { color: #64748b; font-size: 13px; margin-top: 6px; }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      font-size: 14px;
-      background: white;
-    }
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .btn-main { background: #0f172a; color: white; }
-    .btn-blue { background: #e0f2fe; color: #075985; }
-    .btn-gray { background: #f1f5f9; color: #334155; }
-    .btn-red { background: #fee2e2; color: #991b1b; padding: 10px 12px; }
-    .controls { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
-    .month-label { display: grid; gap: 6px; min-width: 180px; font-weight: 700; }
-    .rows { display: grid; gap: 10px; }
-    .row-head, .money-row {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr auto;
-      gap: 8px;
-      align-items: center;
-    }
-    .row-head { color: #64748b; font-size: 12px; font-weight: 700; }
-    .diff { font-weight: 800; }
-    .diff-muted { color: #94a3b8; }
-    .diff-good { color: #166534; }
-    .diff-bad { color: #991b1b; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 760px; }
-    th { text-align: left; padding: 10px; color: #64748b; border-bottom: 1px solid #e2e8f0; }
-    td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
-    .right { text-align: right; }
-    .bold { font-weight: 800; }
-    @media (max-width: 760px) {
-      body { padding: 12px; }
-      .grid2 { grid-template-columns: 1fr; }
-      .row-head { display: none; }
-      .money-row { grid-template-columns: 1fr; border: 1px solid #e2e8f0; padding: 10px; border-radius: 14px; }
-      .btn-red { width: 100%; }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>月別 売上・仕入・粗利アプリ</h1>
-        <p>予定額を先に入れて、実績額を後から入れると自動で置き換えて計算します。月ごとに自動保存されます。</p>
-      </div>
-      <div class="controls">
-        <label class="month-label">対象月
-          <input id="monthInput" type="month" />
-        </label>
-        <button class="btn-blue" onclick="copyPreviousMonth()">前月コピー</button>
-        <button class="btn-gray" onclick="clearMonth()">今月を初期化</button>
-      </div>
-    </header>
-
-    <section class="grid4">
-      <div class="card"><div class="label">試算売上</div><div class="value" id="totalSales">¥0</div><div class="sub" id="salesCompare">前年同月 ¥0 / 0.0%</div></div>
-      <div class="card"><div class="label">試算仕入</div><div class="value" id="totalPurchases">¥0</div><div class="sub">実績未入力は予定額で計算</div></div>
-      <div class="card"><div class="label">試算粗利</div><div class="value" id="grossProfit">¥0</div><div class="sub" id="grossCompare">前年差額 ¥0</div></div>
-      <div class="card"><div class="label">試算粗利率</div><div class="value" id="grossMargin">0.0%</div><div class="sub">売上に対する粗利</div></div>
-    </section>
-
-    <section class="grid3">
-      <div class="card"><div class="label">工事関連売上</div><div class="value" id="constructionSales">¥0</div><div class="sub" id="constructionProfit">粗利 ¥0</div></div>
-      <div class="card"><div class="label">LPガス売上</div><div class="value" id="gasSales">¥0</div><div class="sub" id="gasProfit">粗利 ¥0</div></div>
-      <div class="card"><div class="label">SS売上</div><div class="value" id="ssSales">¥0</div><div class="sub" id="ssProfit">粗利 ¥0</div></div>
-    </section>
-
-    <section class="grid2">
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px;">
-          <h2>売上入力</h2>
-          <button class="btn-main" onclick="addRow('sales')">＋追加</button>
-        </div>
-        <div class="rows">
-          <div class="row-head"><div>区分</div><div>内容</div><div>予定額</div><div>実績額</div><div>差額</div><div></div></div>
-          <div id="salesRows"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px;">
-          <h2>仕入入力</h2>
-          <button class="btn-main" onclick="addRow('purchases')">＋追加</button>
-        </div>
-        <div class="rows">
-          <div class="row-head"><div>区分</div><div>内容</div><div>予定額</div><div>実績額</div><div>差額</div><div></div></div>
-          <div id="purchaseRows"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>前年同月比較</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>項目</th><th class="right">今年</th><th class="right">前年同月</th><th class="right">差額</th><th class="right">前年比</th></tr></thead>
-          <tbody id="compareTable"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>部門別まとめ</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>区分</th><th class="right">試算売上</th><th class="right">試算仕入</th><th class="right">試算粗利</th><th class="right">予定売上</th><th class="right">実績売上</th></tr></thead>
-          <tbody id="departmentTable"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-
 <script>
-const STORAGE_KEY = "monthly-profit-app-html-v1";
-const salesCategories = ["工事関連売上", "LPガス売上", "SS売上", "その他売上"];
-const purchaseCategories = ["工事材料仕入", "LPガス仕入", "SS燃料仕入", "その他仕入"];
-let idCounter = 0;
-let currentMonth = "";
-let savedData = {};
 
-function makeId() {
-  idCounter += 1;
-  return "row-" + Date.now() + "-" + idCounter;
-}
+function exportBackup(savedData) {
 
-function yen(value) {
-  return new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 }).format(Number(value || 0));
-}
-
-function toNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function getActualOrPlan(row) {
-  const actual = String(row.actualAmount ?? "").trim();
-  if (actual !== "") return toNumber(actual);
-  return toNumber(row.plannedAmount);
-}
-
-function getDiff(row) {
-  const actual = String(row.actualAmount ?? "").trim();
-  if (actual === "") return 0;
-  return toNumber(row.actualAmount) - toNumber(row.plannedAmount);
-}
-
-function createInitialRows() {
-  return {
-    sales: [
-      { id: makeId(), category: "工事関連売上", name: "工事売上", plannedAmount: "", actualAmount: "" },
-      { id: makeId(), category: "LPガス売上", name: "LPガス売上", plannedAmount: "", actualAmount: "" },
-      { id: makeId(), category: "SS売上", name: "SS売上", plannedAmount: "", actualAmount: "" },
-    ],
-    purchases: [
-      { id: makeId(), category: "工事材料仕入", name: "工事材料", plannedAmount: "", actualAmount: "" },
-      { id: makeId(), category: "LPガス仕入", name: "LPガス仕入", plannedAmount: "", actualAmount: "" },
-      { id: makeId(), category: "SS燃料仕入", name: "SS燃料仕入", plannedAmount: "", actualAmount: "" },
-    ],
-  };
-}
-
-function normalizeRow(row, defaultCategory) {
-  return {
-    id: row.id || makeId(),
-    category: row.category || defaultCategory,
-    name: row.name || "",
-    plannedAmount: row.plannedAmount ?? row.amount ?? "",
-    actualAmount: row.actualAmount ?? "",
-  };
-}
-
-function loadData() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    savedData = raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    savedData = {};
+
+    const blob = new Blob(
+
+      [JSON.stringify(savedData, null, 2)],
+
+      { type: "application/json" }
+
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    const now = new Date();
+
+    const stamp =
+
+      `${now.getFullYear()}` +
+
+      `${String(now.getMonth() + 1).padStart(2, "0")}` +
+
+      `${String(now.getDate()).padStart(2, "0")}_` +
+
+      `${String(now.getHours()).padStart(2, "0")}` +
+
+      `${String(now.getMinutes()).padStart(2, "0")}`;
+
+    link.href = url;
+
+    link.download = `keiei_backup_${stamp}.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+    alert("バックアップを保存しました");
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("バックアップ保存に失敗しました");
+
   }
+
 }
 
-function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
-}
+function importBackup(callback) {
 
-function getMonthData(month) {
-  if (!savedData[month]) savedData[month] = createInitialRows();
-  savedData[month].sales = (savedData[month].sales || []).map(row => normalizeRow(row, "工事関連売上"));
-  savedData[month].purchases = (savedData[month].purchases || []).map(row => normalizeRow(row, "工事材料仕入"));
-  return savedData[month];
-}
+  const input = document.createElement("input");
 
-function calculateSummary(salesRows, purchaseRows) {
-  const salesByCategory = Object.fromEntries(salesCategories.map(c => [c, 0]));
-  const purchasesByCategory = Object.fromEntries(purchaseCategories.map(c => [c, 0]));
-  const plannedSalesByCategory = Object.fromEntries(salesCategories.map(c => [c, 0]));
-  const actualSalesByCategory = Object.fromEntries(salesCategories.map(c => [c, 0]));
+  input.type = "file";
 
-  salesRows.forEach(row => {
-    const category = row.category || "その他売上";
-    salesByCategory[category] = (salesByCategory[category] || 0) + getActualOrPlan(row);
-    plannedSalesByCategory[category] = (plannedSalesByCategory[category] || 0) + toNumber(row.plannedAmount);
-    actualSalesByCategory[category] = (actualSalesByCategory[category] || 0) + toNumber(row.actualAmount);
-  });
+  input.accept = "application/json";
 
-  purchaseRows.forEach(row => {
-    const category = row.category || "その他仕入";
-    purchasesByCategory[category] = (purchasesByCategory[category] || 0) + getActualOrPlan(row);
-  });
+  input.onchange = (event) => {
 
-  const totalSales = salesRows.reduce((sum, row) => sum + getActualOrPlan(row), 0);
-  const totalPurchases = purchaseRows.reduce((sum, row) => sum + getActualOrPlan(row), 0);
-  const plannedSales = salesRows.reduce((sum, row) => sum + toNumber(row.plannedAmount), 0);
-  const plannedPurchases = purchaseRows.reduce((sum, row) => sum + toNumber(row.plannedAmount), 0);
-  const actualSales = salesRows.reduce((sum, row) => sum + toNumber(row.actualAmount), 0);
-  const actualPurchases = purchaseRows.reduce((sum, row) => sum + toNumber(row.actualAmount), 0);
-  const grossProfit = totalSales - totalPurchases;
-  const plannedGrossProfit = plannedSales - plannedPurchases;
-  const actualGrossProfit = actualSales - actualPurchases;
-  const grossMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+    const file = event.target.files[0];
 
-  return {
-    salesByCategory, purchasesByCategory, plannedSalesByCategory, actualSalesByCategory,
-    totalSales, totalPurchases, plannedSales, plannedPurchases, actualSales, actualPurchases,
-    grossProfit, plannedGrossProfit, actualGrossProfit, grossMargin
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+      try {
+
+        const parsed = JSON.parse(reader.result);
+
+        const ok = confirm(
+
+          "現在のデータを上書きして復元しますか？"
+
+        );
+
+        if (!ok) return;
+
+        callback(parsed);
+
+        alert("バックアップを復元しました");
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert("バックアップ読み込み失敗");
+
+      }
+
+    };
+
+    reader.readAsText(file);
+
   };
+
+  input.click();
+
 }
 
-function compareValue(current, previous) {
-  return { diff: current - previous, percent: previous > 0 ? (current / previous) * 100 : 0 };
-}
-
-function renderRows(kind) {
-  const data = getMonthData(currentMonth);
-  const rows = kind === "sales" ? data.sales : data.purchases;
-  const container = document.getElementById(kind === "sales" ? "salesRows" : "purchaseRows");
-  const categories = kind === "sales" ? salesCategories : purchaseCategories;
-
-  container.innerHTML = "";
-  rows.forEach(row => {
-    const actualBlank = String(row.actualAmount ?? "").trim() === "";
-    const diff = getDiff(row);
-    const diffClass = actualBlank ? "diff-muted" : (diff >= 0 ? (kind === "sales" ? "diff-good" : "diff-bad") : (kind === "sales" ? "diff-bad" : "diff-good"));
-
-    const div = document.createElement("div");
-    div.className = "money-row";
-    div.innerHTML = `
-      <select data-field="category">${categories.map(c => `<option value="${c}" ${row.category === c ? "selected" : ""}>${c}</option>`).join("")}</select>
-      <input data-field="name" value="${escapeHtml(row.name)}" placeholder="内容" />
-      <input data-field="plannedAmount" type="number" value="${escapeHtml(row.plannedAmount)}" placeholder="予定額" />
-      <input data-field="actualAmount" type="number" value="${escapeHtml(row.actualAmount)}" placeholder="未入力なら予定額" />
-      <div class="diff ${diffClass}">${actualBlank ? "予定" : yen(diff)}</div>
-      <button class="btn-red">削除</button>
-    `;
-
-    div.querySelectorAll("[data-field]").forEach(input => {
-      input.addEventListener("input", event => {
-        row[event.target.dataset.field] = event.target.value;
-        saveData();
-        render();
-      });
-    });
-    div.querySelector("button").addEventListener("click", () => {
-      const targetRows = kind === "sales" ? data.sales : data.purchases;
-      const nextRows = targetRows.filter(r => r.id !== row.id);
-      if (kind === "sales") data.sales = nextRows; else data.purchases = nextRows;
-      saveData();
-      render();
-    });
-    container.appendChild(div);
-  });
-}
-
-function render() {
-  const data = getMonthData(currentMonth);
-  const summary = calculateSummary(data.sales, data.purchases);
-
-  const y = Number(currentMonth.split("-")[0]);
-  const m = currentMonth.split("-")[1];
-  const previousYearMonth = `${y - 1}-${m}`;
-  const previousData = savedData[previousYearMonth] || { sales: [], purchases: [] };
-  const previousSummary = calculateSummary(previousData.sales || [], previousData.purchases || []);
-  const salesCompare = compareValue(summary.totalSales, previousSummary.totalSales);
-  const grossCompare = compareValue(summary.grossProfit, previousSummary.grossProfit);
-
-  const constructionProfit = summary.salesByCategory["工事関連売上"] - summary.purchasesByCategory["工事材料仕入"];
-  const gasProfit = summary.salesByCategory["LPガス売上"] - summary.purchasesByCategory["LPガス仕入"];
-  const ssProfit = summary.salesByCategory["SS売上"] - summary.purchasesByCategory["SS燃料仕入"];
-
-  setText("totalSales", yen(summary.totalSales));
-  setText("totalPurchases", yen(summary.totalPurchases));
-  setText("grossProfit", yen(summary.grossProfit));
-  setText("grossMargin", summary.grossMargin.toFixed(1) + "%");
-  setText("salesCompare", `前年同月 ${yen(previousSummary.totalSales)} / ${salesCompare.percent.toFixed(1)}%`);
-  setText("grossCompare", `前年差額 ${yen(grossCompare.diff)}`);
-
-  setText("constructionSales", yen(summary.salesByCategory["工事関連売上"]));
-  setText("gasSales", yen(summary.salesByCategory["LPガス売上"]));
-  setText("ssSales", yen(summary.salesByCategory["SS売上"]));
-  setText("constructionProfit", `粗利 ${yen(constructionProfit)}`);
-  setText("gasProfit", `粗利 ${yen(gasProfit)}`);
-  setText("ssProfit", `粗利 ${yen(ssProfit)}`);
-
-  document.getElementById("compareTable").innerHTML = `
-    <tr><td class="bold">全体売上</td><td class="right">${yen(summary.totalSales)}</td><td class="right">${yen(previousSummary.totalSales)}</td><td class="right bold">${yen(salesCompare.diff)}</td><td class="right bold">${salesCompare.percent.toFixed(1)}%</td></tr>
-    <tr><td class="bold">粗利</td><td class="right">${yen(summary.grossProfit)}</td><td class="right">${yen(previousSummary.grossProfit)}</td><td class="right bold">${yen(grossCompare.diff)}</td><td class="right bold">${grossCompare.percent.toFixed(1)}%</td></tr>
-  `;
-
-  document.getElementById("departmentTable").innerHTML = `
-    <tr><td class="bold">工事関連</td><td class="right">${yen(summary.salesByCategory["工事関連売上"])}</td><td class="right">${yen(summary.purchasesByCategory["工事材料仕入"])}</td><td class="right bold">${yen(constructionProfit)}</td><td class="right">${yen(summary.plannedSalesByCategory["工事関連売上"])}</td><td class="right">${yen(summary.actualSalesByCategory["工事関連売上"])}</td></tr>
-    <tr><td class="bold">LPガス</td><td class="right">${yen(summary.salesByCategory["LPガス売上"])}</td><td class="right">${yen(summary.purchasesByCategory["LPガス仕入"])}</td><td class="right bold">${yen(gasProfit)}</td><td class="right">${yen(summary.plannedSalesByCategory["LPガス売上"])}</td><td class="right">${yen(summary.actualSalesByCategory["LPガス売上"])}</td></tr>
-    <tr><td class="bold">SS</td><td class="right">${yen(summary.salesByCategory["SS売上"])}</td><td class="right">${yen(summary.purchasesByCategory["SS燃料仕入"])}</td><td class="right bold">${yen(ssProfit)}</td><td class="right">${yen(summary.plannedSalesByCategory["SS売上"])}</td><td class="right">${yen(summary.actualSalesByCategory["SS売上"])}</td></tr>
-  `;
-
-  renderRows("sales");
-  renderRows("purchases");
-  saveData();
-}
-
-function setText(id, text) {
-  document.getElementById(id).textContent = text;
-}
-
-function addRow(kind) {
-  const data = getMonthData(currentMonth);
-  if (kind === "sales") {
-    data.sales.push({ id: makeId(), category: "工事関連売上", name: "", plannedAmount: "", actualAmount: "" });
-  } else {
-    data.purchases.push({ id: makeId(), category: "工事材料仕入", name: "", plannedAmount: "", actualAmount: "" });
-  }
-  saveData();
-  render();
-}
-
-function copyPreviousMonth() {
-  const [yearText, monthText] = currentMonth.split("-");
-  const date = new Date(Number(yearText), Number(monthText) - 2, 1);
-  const previousMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  const previousData = savedData[previousMonth];
-  if (!previousData) {
-    alert(`前月（${previousMonth}）のデータがありません。`);
-    return;
-  }
-  savedData[currentMonth] = {
-    sales: (previousData.sales || []).map(row => ({ ...normalizeRow(row, "工事関連売上"), id: makeId(), actualAmount: "" })),
-    purchases: (previousData.purchases || []).map(row => ({ ...normalizeRow(row, "工事材料仕入"), id: makeId(), actualAmount: "" })),
-  };
-  saveData();
-  render();
-}
-
-function clearMonth() {
-  if (!confirm(`${currentMonth} のデータを空にしますか？`)) return;
-  savedData[currentMonth] = createInitialRows();
-  saveData();
-  render();
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function runTests() {
-  const result = calculateSummary(
-    [
-      { category: "工事関連売上", plannedAmount: 100000, actualAmount: 120000 },
-      { category: "LPガス売上", plannedAmount: 50000, actualAmount: "" },
-      { category: "SS売上", plannedAmount: "30000", actualAmount: "25000" },
-    ],
-    [
-      { category: "工事材料仕入", plannedAmount: 40000, actualAmount: 45000 },
-      { category: "LPガス仕入", plannedAmount: 25000, actualAmount: "" },
-      { category: "SS燃料仕入", plannedAmount: "10000", actualAmount: "12000" },
-    ]
-  );
-  console.assert(result.totalSales === 195000, "売上合計テスト");
-  console.assert(result.totalPurchases === 82000, "仕入合計テスト");
-  console.assert(result.grossProfit === 113000, "粗利テスト");
-}
-
-document.getElementById("monthInput").addEventListener("change", event => {
-  currentMonth = event.target.value;
-  getMonthData(currentMonth);
-  saveData();
-  render();
-});
-
-(function init() {
-  runTests();
-  loadData();
-  const now = new Date();
-  currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  document.getElementById("monthInput").value = currentMonth;
-  getMonthData(currentMonth);
-  render();
-})();
 </script>
-</body>
-</html>
